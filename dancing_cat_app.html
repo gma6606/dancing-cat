@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dancing Cat - Spacebar Groove!</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+    <!-- Tone.js for audio synth & music -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <style>
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Disco Floor Grid Animation */
+        .disco-floor {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+        }
+
+        /* Cat Dance Animations & Transforms */
+        .cat-part {
+            transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: center;
+        }
+
+        /* Dance Pose 0: Idle Bounce */
+        .dance-pose-0 #cat-body { transform: translateY(0px) scale(1, 1); }
+        .dance-pose-0 #cat-head { transform: rotate(0deg); }
+        .dance-pose-0 #cat-arm-left { transform: rotate(0deg); }
+        .dance-pose-0 #cat-arm-right { transform: rotate(0deg); }
+        .dance-pose-0 #cat-tail { transform: rotate(0deg); }
+
+        /* Dance Pose 1: Hype High Jump */
+        .dance-pose-1 #cat-svg-container { transform: translateY(-45px) rotate(-4deg); }
+        .dance-pose-1 #cat-head { transform: rotate(-12deg) translateY(-5px); }
+        .dance-pose-1 #cat-arm-left { transform: rotate(-130deg) translateY(-10px); }
+        .dance-pose-1 #cat-arm-right { transform: rotate(130deg) translateY(-10px); }
+        .dance-pose-1 #cat-leg-left { transform: rotate(20deg) translateY(-10px); }
+        .dance-pose-1 #cat-leg-right { transform: rotate(-20deg) translateY(-10px); }
+        .dance-pose-1 #cat-tail { transform: rotate(45deg); }
+
+        /* Dance Pose 2: Left Groove Lean */
+        .dance-pose-2 #cat-svg-container { transform: translateY(-10px) rotate(-15deg) scaleX(1.05); }
+        .dance-pose-2 #cat-head { transform: rotate(-15deg); }
+        .dance-pose-2 #cat-arm-left { transform: rotate(-160deg); }
+        .dance-pose-2 #cat-arm-right { transform: rotate(30deg); }
+        .dance-pose-2 #cat-leg-left { transform: rotate(-15deg); }
+        .dance-pose-2 #cat-leg-right { transform: rotate(15deg); }
+        .dance-pose-2 #cat-tail { transform: rotate(-60deg); }
+
+        /* Dance Pose 3: Right Groove Lean */
+        .dance-pose-3 #cat-svg-container { transform: translateY(-10px) rotate(15deg) scaleX(1.05); }
+        .dance-pose-3 #cat-head { transform: rotate(15deg); }
+        .dance-pose-3 #cat-arm-left { transform: rotate(-30deg); }
+        .dance-pose-3 #cat-arm-right { transform: rotate(160deg); }
+        .dance-pose-3 #cat-leg-left { transform: rotate(-15deg); }
+        .dance-pose-3 #cat-leg-right { transform: rotate(15deg); }
+        .dance-pose-3 #cat-tail { transform: rotate(60deg); }
+
+        /* Dance Pose 4: Low Drop squat */
+        .dance-pose-4 #cat-svg-container { transform: translateY(25px) scale(1.2, 0.85); }
+        .dance-pose-4 #cat-head { transform: rotate(0deg) translateY(10px); }
+        .dance-pose-4 #cat-arm-left { transform: rotate(-90deg) translateX(-10px); }
+        .dance-pose-4 #cat-arm-right { transform: rotate(90deg) translateX(10px); }
+        .dance-pose-4 #cat-tail { transform: rotate(90deg); }
+
+        /* Floating Note Animation */
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0) scale(0.8) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(-140px) scale(1.4) rotate(36deg); }
+        }
+        .floating-note {
+            position: absolute;
+            animation: float-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            pointer-events: none;
+        }
+
+        /* Spotlight Pulse */
+        @keyframes spotlight-pulse {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 0.75; transform: scale(1.1); }
+        }
+        .spotlight-active {
+            animation: spotlight-pulse 0.4s ease-in-out infinite;
+        }
+
+        /* Disco Light Flares */
+        .disco-ball {
+            animation: spin 8s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-between overflow-hidden relative select-none">
+
+    <!-- Background Disco Stage -->
+    <div id="stage-bg" class="absolute inset-0 bg-gradient-to-b from-indigo-950 via-purple-950 to-slate-950 transition-colors duration-300"></div>
+    <div class="absolute inset-0 disco-floor opacity-40"></div>
+
+    <!-- Dynamic Colorful Stage Spotlights -->
+    <div id="spotlight" class="absolute top-0 w-80 h-[80vh] bg-gradient-to-b from-yellow-300/30 via-pink-500/10 to-transparent blur-3xl pointer-events-none rounded-full transition-all duration-200 spotlight-active"></div>
+    <div id="spotlight-secondary" class="absolute top-0 w-80 h-[80vh] bg-gradient-to-b from-cyan-400/20 via-purple-500/10 to-transparent blur-3xl pointer-events-none rounded-full transition-all duration-300"></div>
+
+    <!-- Top Header Bar -->
+    <header class="relative z-10 w-full max-w-4xl px-6 pt-6 flex justify-between items-center">
+        <!-- Title & Subtitle -->
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-pink-500 to-purple-500 p-2.5 rounded-2xl shadow-lg shadow-pink-500/30">
+                <i class="fa-solid font-bold fa-cat text-2xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-extrabold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-purple-300 to-cyan-300">
+                    DANCING CAT
+                </h1>
+                <p class="text-xs md:text-sm text-purple-300/80 font-semibold">Press Spacebar to Drop the Beat!</p>
+            </div>
+        </div>
+
+        <!-- Disco Ball Graphic -->
+        <div class="relative group cursor-pointer" id="disco-ball-btn">
+            <div class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-slate-200 via-slate-400 to-slate-600 border-2 border-slate-300 shadow-xl flex items-center justify-center disco-ball overflow-hidden">
+                <div class="grid grid-cols-4 gap-0.5 w-full h-full opacity-60">
+                    <div class="bg-white/60"></div><div class="bg-cyan-200/60"></div><div class="bg-pink-300/60"></div><div class="bg-white/60"></div>
+                    <div class="bg-purple-300/60"></div><div class="bg-white/60"></div><div class="bg-yellow-200/60"></div><div class="bg-cyan-200/60"></div>
+                    <div class="bg-white/60"></div><div class="bg-pink-300/60"></div><div class="bg-white/60"></div><div class="bg-purple-300/60"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mute / Music Toggle -->
+        <button id="sound-toggle" class="bg-slate-800/80 hover:bg-slate-700/80 backdrop-blur border border-purple-500/30 text-purple-200 px-4 py-2.5 rounded-xl font-bold flex items-center space-x-2 transition shadow-md hover:scale-105 active:scale-95">
+            <i id="sound-icon" class="fa-solid fa-volume-high text-pink-400"></i>
+            <span id="sound-text" class="hidden sm:inline text-xs">Audio On</span>
+        </button>
+    </header>
+
+    <!-- Dance Combo & Score HUD -->
+    <div class="relative z-10 my-2 flex flex-col items-center">
+        <div class="bg-slate-800/60 backdrop-blur-md border border-white/10 px-6 py-2 rounded-full shadow-2xl flex items-center space-x-6">
+            <div class="text-center">
+                <span class="text-[10px] uppercase tracking-wider text-purple-300 block font-bold">Dance Moves</span>
+                <span id="move-count" class="text-2xl font-black text-white">0</span>
+            </div>
+            <div class="h-8 w-px bg-white/15"></div>
+            <div class="text-center">
+                <span class="text-[10px] uppercase tracking-wider text-pink-400 block font-bold">Groove Combo</span>
+                <span id="combo-count" class="text-2xl font-black text-pink-400">0x</span>
+            </div>
+            <div class="h-8 w-px bg-white/15"></div>
+            <div class="text-center">
+                <span class="text-[10px] uppercase tracking-wider text-cyan-300 block font-bold">Style Pose</span>
+                <span id="pose-name" class="text-sm font-extrabold text-cyan-300">CHILLIN'</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dance Stage Container -->
+    <main class="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-2xl px-4">
+        
+        <!-- Floating Notes Container -->
+        <div id="notes-container" class="absolute inset-0 pointer-events-none z-20"></div>
+
+        <!-- Vector SVG Animated Dancing Cat -->
+        <div id="cat-wrapper" class="relative cursor-pointer transition-transform duration-100 dance-pose-0 my-auto">
+            
+            <!-- Floor Shadow -->
+            <div id="cat-shadow" class="w-48 h-6 bg-black/40 rounded-full blur-md mx-auto mb-[-20px] transition-all duration-150"></div>
+
+            <div id="cat-svg-container" class="transition-transform duration-120 ease-out">
+                <svg id="cat-svg" class="w-64 h-64 md:w-80 md:h-80 drop-shadow-2xl" viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    
+                    <!-- Tail -->
+                    <g id="cat-tail" class="cat-part">
+                        <path d="M 110 220 C 60 210, 50 140, 80 120 C 85 115, 95 125, 88 135 C 70 150, 75 190, 115 198 Z" fill="#F97316" stroke="#EA580C" stroke-width="3"/>
+                    </g>
+
+                    <!-- Left Leg -->
+                    <g id="cat-leg-left" class="cat-part">
+                        <rect x="110" y="210" width="28" height="45" rx="14" fill="#FB923C" stroke="#EA580C" stroke-width="3"/>
+                        <!-- Shoe -->
+                        <ellipse cx="120" cy="252" rx="18" ry="10" fill="#38BDF8"/>
+                    </g>
+
+                    <!-- Right Leg -->
+                    <g id="cat-leg-right" class="cat-part">
+                        <rect x="162" y="210" width="28" height="45" rx="14" fill="#FB923C" stroke="#EA580C" stroke-width="3"/>
+                        <!-- Shoe -->
+                        <ellipse cx="178" cy="252" rx="18" ry="10" fill="#38BDF8"/>
+                    </g>
+
+                    <!-- Main Body -->
+                    <g id="cat-body" class="cat-part">
+                        <!-- Torso -->
+                        <path d="M 105 135 C 105 110, 195 110, 195 135 L 190 220 C 190 230, 110 230, 110 220 Z" fill="#F97316" stroke="#EA580C" stroke-width="3"/>
+                        <!-- Fluffy Belly Patch -->
+                        <ellipse cx="150" cy="170" rx="30" ry="38" fill="#FFEDD5"/>
+                        <!-- Cool Dance Hoodie/Shirt Design -->
+                        <path d="M 120 140 Q 150 155 180 140" stroke="#EC4899" stroke-width="6" stroke-linecap="round"/>
+                        <circle cx="150" cy="175" r="8" fill="#EC4899"/>
+                    </g>
+
+                    <!-- Left Arm -->
+                    <g id="cat-arm-left" class="cat-part">
+                        <rect x="85" y="135" width="24" height="55" rx="12" fill="#FB923C" stroke="#EA580C" stroke-width="3"/>
+                        <!-- Paw / Glove -->
+                        <circle cx="97" cy="186" r="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2"/>
+                    </g>
+
+                    <!-- Right Arm -->
+                    <g id="cat-arm-right" class="cat-part">
+                        <rect x="191" y="135" width="24" height="55" rx="12" fill="#FB923C" stroke="#EA580C" stroke-width="3"/>
+                        <!-- Paw / Glove -->
+                        <circle cx="203" cy="186" r="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2"/>
+                    </g>
+
+                    <!-- Head Group -->
+                    <g id="cat-head" class="cat-part">
+                        <!-- Ears -->
+                        <!-- Left Ear -->
+                        <path d="M 95 85 L 75 35 L 120 60 Z" fill="#F97316" stroke="#EA580C" stroke-width="3"/>
+                        <path d="M 92 75 L 82 45 L 110 60 Z" fill="#F472B6"/>
+                        <!-- Right Ear -->
+                        <path d="M 205 85 L 225 35 L 180 60 Z" fill="#F97316" stroke="#EA580C" stroke-width="3"/>
+                        <path d="M 208 75 L 218 45 L 190 60 Z" fill="#F472B6"/>
+
+                        <!-- Head Shape -->
+                        <ellipse cx="150" cy="85" rx="60" ry="48" fill="#F97316" stroke="#EA580C" stroke-width="3"/>
+                        <!-- Cheeks -->
+                        <ellipse cx="105" cy="98" rx="10" ry="6" fill="#F472B6" opacity="0.6"/>
+                        <ellipse cx="195" cy="98" rx="10" ry="6" fill="#F472B6" opacity="0.6"/>
+
+                        <!-- Muzzle -->
+                        <ellipse cx="150" cy="98" rx="18" ry="12" fill="#FFEDD5"/>
+                        <path d="M 146 93 L 154 93 L 150 98 Z" fill="#EC4899" id="cat-nose"/>
+                        <path d="M 150 98 Q 144 106 138 102 M 150 98 Q 156 106 162 102" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+
+                        <!-- Whiskers -->
+                        <line x1="80" y1="90" x2="105" y2="93" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="75" y1="102" x2="105" y2="100" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="220" y1="90" x2="195" y2="93" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="225" y1="102" x2="195" y2="100" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+
+                        <!-- Eyes (Dynamic/Switchable) -->
+                        <g id="cat-eyes">
+                            <!-- Left Eye -->
+                            <ellipse cx="122" cy="80" rx="9" ry="12" fill="#0F172A"/>
+                            <circle cx="120" cy="76" r="3.5" fill="#FFFFFF"/>
+                            <!-- Right Eye -->
+                            <ellipse cx="178" cy="80" rx="9" ry="12" fill="#0F172A"/>
+                            <circle cx="176" cy="76" r="3.5" fill="#FFFFFF"/>
+                        </g>
+
+                        <!-- Sunglasses (Toggled on high combos) -->
+                        <g id="cat-sunglasses" class="transition-opacity duration-300 opacity-0">
+                            <rect x="100" y="68" width="44" height="26" rx="6" fill="#0F172A" stroke="#FACC15" stroke-width="2"/>
+                            <rect x="156" y="68" width="44" height="26" rx="6" fill="#0F172A" stroke="#FACC15" stroke-width="2"/>
+                            <line x1="144" y1="78" x2="156" y2="78" stroke="#FACC15" stroke-width="3"/>
+                            <!-- Lens Reflection -->
+                            <line x1="106" y1="72" x2="118" y2="88" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
+                            <line x1="162" y1="72" x2="174" y2="88" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
+                        </g>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Interactive Bottom Spacebar Trigger Panel -->
+    <footer class="relative z-10 w-full max-w-xl px-6 pb-8 flex flex-col items-center">
+        
+        <!-- Big Interactive Trigger Button -->
+        <button id="dance-trigger-btn" class="w-full bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:from-pink-400 hover:to-indigo-500 active:scale-95 text-white font-extrabold text-xl md:text-2xl py-4 px-8 rounded-2xl shadow-xl shadow-pink-500/25 border-b-4 border-purple-800 transition-all transform flex items-center justify-center space-x-3 group cursor-pointer">
+            <span class="bg-white/20 px-3 py-1 rounded-lg text-sm md:text-base border border-white/30 font-mono tracking-widest shadow-inner group-hover:scale-110 transition-transform">
+                SPACEBAR
+            </span>
+            <span>PRESS TO DANCE!</span>
+            <i class="fa-solid fa-compact-disc animate-spin text-pink-300"></i>
+        </button>
+
+        <!-- On-Screen Instructions Hint -->
+        <p class="text-xs text-purple-300/70 mt-3 text-center font-medium">
+            <i class="fa-solid fa-keyboard mr-1"></i> Tap the <span class="text-white font-bold">Space bar</span> on your keyboard or tap the button above to dance!
+        </p>
+    </footer>
+
+    <script>
+        /* ==========================================
+           1. Audio Synthesizer Engine (Tone.js & WebAudio)
+           ========================================== */
+        let audioStarted = false;
+        let soundEnabled = true;
+
+        // Synth for Meow & Dance Beats
+        let synth = null;
+        let bassSynth = null;
+        let noiseSynth = null;
+
+        function initAudio() {
+            if (audioStarted) return;
+            try {
+                Tone.start();
+                
+                // Melodic Lead Synth for cat grooves
+                synth = new Tone.Synth({
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.01, decay: 0.15, sustain: 0.1, release: 0.2 }
+                }).toDestination();
+                synth.volume.value = -6;
+
+                // Bass synth for rhythm
+                bassSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.05,
+                    octaves: 4,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.2 }
+                }).toDestination();
+                bassSynth.volume.value = -4;
+
+                audioStarted = true;
+            } catch (e) {
+                console.log("Audio initialization waiting for user gesture.", e);
+            }
+        }
+
+        // Sound FX Notes array
+        const danceNotes = ["C4", "E4", "G4", "A4", "C5", "D5", "E5", "G5"];
+        const meowPitches = ["G4", "A4", "C5", "E5"];
+
+        function playDanceSound(comboCount) {
+            if (!soundEnabled) return;
+            initAudio();
+
+            if (!audioStarted || !synth) return;
+
+            try {
+                // Select note based on random dance groove
+                const note = danceNotes[Math.floor(Math.random() * danceNotes.length)];
+                
+                // Trigger Kick/Bass beat
+                bassSynth.triggerAttackRelease("C1", "8n");
+
+                // Trigger Melodic Dance Synth Note
+                synth.triggerAttackRelease(note, "16n");
+
+                // Extra "Meow" high note on high combos!
+                if (comboCount > 0 && comboCount % 5 === 0) {
+                    setTimeout(() => {
+                        const meowNote = meowPitches[Math.floor(Math.random() * meowPitches.length)];
+                        synth.triggerAttackRelease(meowNote, "8n", "+0.05");
+                    }, 80);
+                }
+            } catch(e) {
+                // Fallback catch for browser audio policies
+            }
+        }
+
+        /* ==========================================
+           2. Application State & Elements
+           ========================================== */
+        let moveCounter = 0;
+        let comboCounter = 0;
+        let currentPose = 0;
+        let poseResetTimeout = null;
+        let lastSpaceTime = 0;
+
+        const poseNames = [
+            "CHILLIN'",
+            "HYPE JUMP! 🚀",
+            "LEFT GROOVE 🕺",
+            "RIGHT SHUFFLE 💃",
+            "BREAKDANCE DROP ⚡"
+        ];
+
+        const backgroundGradients = [
+            "from-indigo-950 via-purple-950 to-slate-950",
+            "from-pink-950 via-purple-900 to-indigo-950",
+            "from-purple-950 via-fuchsia-950 to-slate-950",
+            "from-blue-950 via-indigo-900 to-slate-950",
+            "from-rose-950 via-purple-950 to-cyan-950"
+        ];
+
+        const spotlightColors = [
+            "from-yellow-300/30 via-pink-500/10",
+            "from-cyan-300/30 via-blue-500/10",
+            "from-green-300/30 via-emerald-500/10",
+            "from-pink-400/30 via-purple-500/10",
+            "from-amber-300/30 via-red-500/10"
+        ];
+
+        // DOM Elements
+        const catWrapper = document.getElementById("cat-wrapper");
+        const catShadow = document.getElementById("cat-shadow");
+        const sunglasses = document.getElementById("cat-sunglasses");
+        const moveCountEl = document.getElementById("move-count");
+        const comboCountEl = document.getElementById("combo-count");
+        const poseNameEl = document.getElementById("pose-name");
+        const danceBtn = document.getElementById("dance-trigger-btn");
+        const stageBg = document.getElementById("stage-bg");
+        const spotlight = document.getElementById("spotlight");
+        const notesContainer = document.getElementById("notes-container");
+        const soundToggle = document.getElementById("sound-toggle");
+        const soundIcon = document.getElementById("sound-icon");
+        const soundText = document.getElementById("sound-text");
+
+        /* ==========================================
+           3. Dance Logic & Particle FX
+           ========================================== */
+        function triggerCatDance() {
+            const now = Date.now();
+            
+            // Increment Move Count
+            moveCounter++;
+            moveCountEl.innerText = moveCounter;
+
+            // Calculate Combo Streak (if pressed fast enough)
+            if (now - lastSpaceTime < 1000) {
+                comboCounter++;
+            } else {
+                comboCounter = 1;
+            }
+            lastSpaceTime = now;
+            comboCountEl.innerText = `${comboCounter}x`;
+
+            // Toggle Sunglasses on High Combos (>8)
+            if (comboCounter >= 8) {
+                sunglasses.classList.remove("opacity-0");
+                sunglasses.classList.add("opacity-100");
+            } else {
+                sunglasses.classList.add("opacity-0");
+                sunglasses.classList.remove("opacity-100");
+            }
+
+            // Pick Next Random Dance Pose (distinct from current)
+            let nextPose;
+            do {
+                nextPose = Math.floor(Math.random() * (poseNames.length - 1)) + 1;
+            } while (nextPose === currentPose && poseNames.length > 2);
+
+            currentPose = nextPose;
+
+            // Apply Dance Pose Class
+            catWrapper.className = `relative cursor-pointer transition-transform duration-100 dance-pose-${currentPose} my-auto`;
+            poseNameEl.innerText = poseNames[currentPose];
+
+            // Adjust Shadow based on pose height
+            if (currentPose === 1) { // High Jump
+                catShadow.style.transform = "scale(0.5)";
+                catShadow.style.opacity = "0.2";
+            } else if (currentPose === 4) { // Low Drop
+                catShadow.style.transform = "scale(1.3)";
+                catShadow.style.opacity = "0.7";
+            } else {
+                catShadow.style.transform = "scale(1)";
+                catShadow.style.opacity = "0.4";
+            }
+
+            // Stage Background Flash & Lighting Shift
+            const bgGradient = backgroundGradients[Math.floor(Math.random() * backgroundGradients.length)];
+            stageBg.className = `absolute inset-0 bg-gradient-to-b ${bgGradient} transition-colors duration-200`;
+
+            const spotColor = spotlightColors[Math.floor(Math.random() * spotlightColors.length)];
+            spotlight.className = `absolute top-0 w-80 h-[80vh] bg-gradient-to-b ${spotColor} to-transparent blur-3xl pointer-events-none rounded-full transition-all duration-200 spotlight-active`;
+            
+            // Randomize Spotlight Position
+            const randomX = Math.floor(Math.random() * 60) - 30; // -30% to +30%
+            spotlight.style.transform = `translateX(${randomX}vw)`;
+
+            // Spawn Visual Musical Note or Sparkle FX
+            spawnFloatingNote();
+
+            // Play Synthesized Dance Sound
+            playDanceSound(comboCounter);
+
+            // Auto Reset to Idle Pose after inactivity
+            clearTimeout(poseResetTimeout);
+            poseResetTimeout = setTimeout(() => {
+                resetToIdle();
+            }, 800);
+        }
+
+        function resetToIdle() {
+            currentPose = 0;
+            comboCounter = 0;
+            catWrapper.className = "relative cursor-pointer transition-transform duration-100 dance-pose-0 my-auto";
+            poseNameEl.innerText = poseNames[0];
+            comboCountEl.innerText = "0x";
+            catShadow.style.transform = "scale(1)";
+            catShadow.style.opacity = "0.4";
+            sunglasses.classList.add("opacity-0");
+        }
+
+        /* ==========================================
+           4. Musical Notes & Particle Effects
+           ========================================== */
+        const noteIcons = ["🎵", "🎶", "✨", "🐾", "⭐", "🎉", "🔥"];
+
+        function spawnFloatingNote() {
+            const note = document.createElement("div");
+            note.className = "floating-note font-black text-2xl md:text-3xl select-none";
+            note.innerText = noteIcons[Math.floor(Math.random() * noteIcons.length)];
+
+            // Position around cat center
+            const rect = catWrapper.getBoundingClientRect();
+            const startX = (rect.width / 2) + (Math.random() * 120 - 60);
+            const startY = (rect.height / 2) - 20;
+
+            note.style.left = `${startX}px`;
+            note.style.top = `${startY}px`;
+
+            notesContainer.appendChild(note);
+
+            // Cleanup DOM
+            setTimeout(() => {
+                note.remove();
+            }, 900);
+        }
+
+        /* ==========================================
+           5. Controls & Keyboard Event Listeners
+           ========================================== */
+
+        // Spacebar Keydown Handler
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "Space") {
+                e.preventDefault(); // Prevent page scrolling down
+                triggerCatDance();
+
+                // Button Pressed Visual Feedback
+                danceBtn.classList.add("scale-95", "brightness-125");
+                setTimeout(() => danceBtn.classList.remove("scale-95", "brightness-125"), 100);
+            }
+        });
+
+        // Click / Tap on On-Screen Dance Button
+        danceBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            triggerCatDance();
+        });
+
+        // Click / Tap directly on Cat
+        catWrapper.addEventListener("click", () => {
+            triggerCatDance();
+        });
+
+        // Toggle Audio Mute / Unmute
+        soundToggle.addEventListener("click", () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-pink-400";
+                soundText.innerText = "Audio On";
+                initAudio();
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-slate-400";
+                soundText.innerText = "Audio Muted";
+            }
+        });
+
+        // Disco Ball Click Secret Effect
+        document.getElementById("disco-ball-btn").addEventListener("click", () => {
+            for (let i = 0; i < 6; i++) {
+                setTimeout(() => spawnFloatingNote(), i * 80);
+            }
+            triggerCatDance();
+        });
+    </script>
+</body>
+</html>
