@@ -1,1 +1,1 @@
-Cat dancing
+Cat dancing app
